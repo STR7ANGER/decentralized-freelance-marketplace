@@ -1,0 +1,25 @@
+{
+  "name": "@marketplace/web",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@marketplace/contracts": "*",
+    "@solana/client": "^1.7.0",
+    "@solana/react-hooks": "^1.4.1",
+    "bs58": "^6.0.0",
+    "next": "^16.2.10",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "vitest": "^4.1.0"
+  }
+}

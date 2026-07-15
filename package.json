@@ -1,0 +1,40 @@
+{
+  "name": "decentralized-freelance-marketplace",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @marketplace/web",
+    "dev:api": "npm run dev --workspace @marketplace/api",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "biome check .",
+    "check": "npm run lint && npm run typecheck && npm test",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "tsx prisma/seed.ts",
+    "smoke": "tsx scripts/live-smoke.ts",
+    "validator": "NO_DNA=1 solana-test-validator --reset --ledger .local-ledger --rpc-port 8899 --faucet-port 9900"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.2.4",
+    "@types/node": "^24.0.0",
+    "prisma": "^6.19.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.3"
+  },
+  "overrides": {
+    "postcss": "^8.5.10",
+    "next": {
+      "postcss": "^8.5.10"
+    }
+  }
+}

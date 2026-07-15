@@ -1,0 +1,200 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ProfileRole {
+  CLIENT
+  FREELANCER
+  RESOLVER
+  ADMIN
+}
+
+enum JobStatus {
+  DRAFT
+  PUBLISHED
+  PAUSED
+  CLOSED
+}
+
+enum ProposalStatus {
+  SUBMITTED
+  SHORTLISTED
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
+enum ContractStatus {
+  NEGOTIATING
+  AGREED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum MilestoneStatus {
+  PROPOSED
+  AGREED
+  FUNDED
+  SUBMITTED
+  APPROVED
+  RELEASED
+  DISPUTED
+  REFUNDED
+  EXPIRED
+}
+
+model Tenant {
+  id         String        @id @default(cuid())
+  slug       String        @unique
+  name       String
+  profiles   UserProfile[]
+  challenges WalletNonce[]
+  jobs       Job[]
+  createdAt  DateTime      @default(now())
+}
+
+model UserProfile {
+  id          String      @id @default(cuid())
+  tenantId    String
+  displayName String
+  bio         String?
+  role        ProfileRole
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  wallets     Wallet[]
+  sessions    Session[]
+  jobs        Job[]       @relation("ClientJobs")
+  proposals   Proposal[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([tenantId, role])
+}
+
+model Wallet {
+  id          String      @id @default(cuid())
+  profileId   String
+  address     String
+  cluster     String
+  profile     UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  createdAt   DateTime    @default(now())
+
+  @@unique([cluster, address])
+  @@index([profileId])
+}
+
+model WalletNonce {
+  id          String    @id @default(cuid())
+  tenantId    String
+  address     String
+  nonceHash   String
+  messageHash String
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@index([tenantId, address, expiresAt])
+}
+
+model Session {
+  id        String      @id @default(cuid())
+  profileId String
+  tokenHash String      @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  profile   UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  createdAt DateTime    @default(now())
+
+  @@index([profileId, expiresAt])
+}
+
+model Job {
+  id          String      @id @default(cuid())
+  tenantId    String
+  clientId    String
+  title       String
+  description String
+  category    String
+  skills      String[]
+  budgetMinor BigInt
+  currency    String
+  status      JobStatus   @default(DRAFT)
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client      UserProfile @relation("ClientJobs", fields: [clientId], references: [id], onDelete: Restrict)
+  proposals   Proposal[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([tenantId, status, createdAt])
+  @@index([tenantId, category, budgetMinor])
+}
+
+model Proposal {
+  id              String         @id @default(cuid())
+  tenantId        String
+  jobId           String
+  freelancerId    String
+  coverLetter     String
+  totalAmountMinor BigInt
+  currency        String
+  deliveryDays    Int
+  status          ProposalStatus @default(SUBMITTED)
+  version         Int            @default(1)
+  job             Job            @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  freelancer      UserProfile    @relation(fields: [freelancerId], references: [id], onDelete: Restrict)
+  contract        Contract?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@unique([jobId, freelancerId])
+  @@index([tenantId, jobId, status])
+}
+
+model Contract {
+  id         String         @id @default(cuid())
+  tenantId   String
+  proposalId String         @unique
+  status     ContractStatus @default(NEGOTIATING)
+  version    Int            @default(1)
+  proposal   Proposal       @relation(fields: [proposalId], references: [id], onDelete: Restrict)
+  milestones Milestone[]
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@index([tenantId, status])
+}
+
+model Milestone {
+  id          String          @id @default(cuid())
+  contractId  String
+  position    Int
+  title       String
+  amountMinor BigInt
+  dueAt       DateTime
+  status      MilestoneStatus @default(PROPOSED)
+  contract    Contract        @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@unique([contractId, position])
+}
+
+model AuditEvent {
+  id         String   @id @default(cuid())
+  tenantId   String
+  actorId    String?
+  action     String
+  targetType String
+  targetId   String?
+  requestId  String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+}
