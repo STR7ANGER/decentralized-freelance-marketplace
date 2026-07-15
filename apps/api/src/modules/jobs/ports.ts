@@ -21,6 +21,15 @@ export type JobSearch = {
   cursor?: string;
   limit: number;
 };
+export type SavedSearchView = {
+  id: string;
+  name: string;
+  search: string | null;
+  category: string | null;
+  minBudgetMinor: bigint | null;
+  maxBudgetMinor: bigint | null;
+  createdAt: Date;
+};
 
 export interface JobRepository {
   findTenant(slug: string): Promise<{ id: string } | null>;
@@ -38,6 +47,19 @@ export interface JobRepository {
   search(
     input: JobSearch,
   ): Promise<{ jobs: JobView[]; nextCursor: string | null }>;
+  saveSearch(input: {
+    tenantId: string;
+    profileId: string;
+    name: string;
+    search?: string;
+    category?: string;
+    minBudgetMinor?: bigint;
+    maxBudgetMinor?: bigint;
+  }): Promise<SavedSearchView>;
+  savedSearches(
+    tenantId: string,
+    profileId: string,
+  ): Promise<SavedSearchView[]>;
   audit(input: {
     tenantId: string;
     actorId: string;

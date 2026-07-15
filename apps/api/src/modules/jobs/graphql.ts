@@ -21,10 +21,12 @@ export function createMarketplaceGraphQL(auth: AuthService, jobs: JobService) {
       typeDefs: /* GraphQL */ `
         type Job { id: ID!, clientName: String!, title: String!, description: String!, category: String!, skills: [String!]!, budgetMinor: String!, currency: String!, status: String!, createdAt: String! }
         type JobConnection { jobs: [Job!]!, nextCursor: String }
+        type SavedSearch { id: ID!, name: String!, search: String, category: String, minBudgetMinor: String, maxBudgetMinor: String, createdAt: String! }
         input JobFilter { search: String, category: String, minBudgetMinor: String, maxBudgetMinor: String, cursor: String, limit: Int = 20 }
+        input SaveSearchInput { name: String!, search: String, category: String, minBudgetMinor: String, maxBudgetMinor: String }
         input CreateJobInput { title: String!, description: String!, category: String!, skills: [String!]!, budgetMinor: String!, currency: String!, publish: Boolean = true }
-        type Query { jobs(tenantSlug: String!, filter: JobFilter): JobConnection! }
-        type Mutation { createJob(input: CreateJobInput!): Job! }
+        type Query { jobs(tenantSlug: String!, filter: JobFilter): JobConnection!, savedSearches: [SavedSearch!]! }
+        type Mutation { createJob(input: CreateJobInput!): Job!, saveSearch(input: SaveSearchInput!): SavedSearch! }
       `,
       resolvers: {
         Query: {
@@ -34,6 +36,18 @@ export function createMarketplaceGraphQL(auth: AuthService, jobs: JobService) {
           ) => {
             try {
               return await jobs.search(input.tenantSlug, input.filter ?? {});
+            } catch (error) {
+              return failure(error);
+            }
+          },
+          savedSearches: async (
+            _root,
+            _input,
+            context: { request: Request },
+          ) => {
+            try {
+              const profile = await auth.authenticate(cookie(context.request));
+              return await jobs.savedSearches(profile);
             } catch (error) {
               return failure(error);
             }
@@ -53,6 +67,18 @@ export function createMarketplaceGraphQL(auth: AuthService, jobs: JobService) {
                 context.request.headers.get("x-request-id") ??
                   crypto.randomUUID(),
               );
+            } catch (error) {
+              return failure(error);
+            }
+          },
+          saveSearch: async (
+            _root,
+            input: { input: unknown },
+            context: { request: Request },
+          ) => {
+            try {
+              const profile = await auth.authenticate(cookie(context.request));
+              return await jobs.saveSearch(profile, input.input);
             } catch (error) {
               return failure(error);
             }

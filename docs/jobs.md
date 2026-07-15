@@ -4,6 +4,8 @@
 
 `jobs(tenantSlug, filter)` is a public composed read with search, category, budget range, cursor, and bounded page size. It returns published jobs only. `createJob(input)` is an authenticated mutation limited to client/admin roles.
 
+Authenticated users can upsert a named filter with `saveSearch(input)` and list their own entries with `savedSearches`. Persistence scopes both `tenantId` and `profileId`; names are unique per profile, so saving the same name updates its filters without creating notification duplicates.
+
 Search and mutation validation share versioned Zod contracts. Budget amounts are positive integer minor units; currencies normalize to uppercase; skills normalize to a unique lowercase set. Creation writes an audit event in the same application flow and telemetry contains counts/flags, never descriptions.
 
 ## Acceptance criteria
@@ -13,6 +15,7 @@ Search and mutation validation share versioned Zod contracts. Budget amounts are
 - Title, description, skill count, currency, budget, and pagination limits fail before persistence.
 - UI exposes loading, empty, provider-error, success, and validation states with keyboard-labelled fields.
 - PostgreSQL indexes support tenant/status chronological discovery and tenant/category/budget filters.
+- Saved searches preserve `BigInt` budget precision, are capped to 20 recent entries, and never cross profile or tenant boundaries.
 
 ## Smallest demo
 

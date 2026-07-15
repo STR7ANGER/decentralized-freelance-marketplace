@@ -81,6 +81,40 @@ if (
 )
   throw new Error("job-search-failed");
 
+const saveSearchMutation = `mutation SaveSearch($input:SaveSearchInput!){saveSearch(input:$input){id name search minBudgetMinor}}`;
+const saveSearchResponse = await fetch(`${apiUrl}/graphql`, {
+  method: "POST",
+  headers: { "content-type": "application/json", cookie },
+  body: JSON.stringify({
+    query: saveSearchMutation,
+    variables: {
+      input: {
+        name: "Local Rust work",
+        search: "rust",
+        minBudgetMinor: "100000",
+      },
+    },
+  }),
+});
+const savedSearch = (await saveSearchResponse.json()) as {
+  data?: { saveSearch: { id: string; name: string } };
+};
+if (!savedSearch.data) throw new Error("save-search-failed");
+const savedListResponse = await fetch(`${apiUrl}/graphql`, {
+  method: "POST",
+  headers: { "content-type": "application/json", cookie },
+  body: JSON.stringify({ query: "query { savedSearches { id name search } }" }),
+});
+const savedList = (await savedListResponse.json()) as {
+  data?: { savedSearches: Array<{ id: string }> };
+};
+if (
+  !savedList.data?.savedSearches.some(
+    (saved) => saved.id === savedSearch.data?.saveSearch.id,
+  )
+)
+  throw new Error("saved-search-list-failed");
+
 const replay = await fetch(`${apiUrl}/v1/auth/verify`, {
   method: "POST",
   headers: { "content-type": "application/json" },
@@ -95,6 +129,7 @@ console.info(
     walletAuthentication: "verified",
     nonceReplay: "rejected",
     publishedJobId: created.data.createJob.id,
+    savedSearchId: savedSearch.data.saveSearch.id,
     transactionSubmitted: false,
   }),
 );

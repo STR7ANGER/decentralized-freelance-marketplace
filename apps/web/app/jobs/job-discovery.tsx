@@ -14,10 +14,13 @@ type Job = {
 };
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 const query = `query Jobs($tenantSlug:String!,$filter:JobFilter){jobs(tenantSlug:$tenantSlug,filter:$filter){jobs{id clientName title description category skills budgetMinor currency} nextCursor}}`;
+const saveMutation = `mutation SaveSearch($input:SaveSearchInput!){saveSearch(input:$input){id name search}}`;
 export function JobDiscovery() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [search, setSearch] = useState("");
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+  const [savedName, setSavedName] = useState("");
+  const [saveStatus, setSaveStatus] = useState("");
   useEffect(() => {
     const controller = new AbortController();
     const timer = setTimeout(() => {
@@ -59,6 +62,51 @@ export function JobDiscovery() {
           placeholder="Try Rust, design systems, analytics…"
         />
       </label>
+      <form
+        className="save-search"
+        onSubmit={async (event) => {
+          event.preventDefault();
+          setSaveStatus("Saving…");
+          try {
+            const response = await fetch(`${apiUrl}/graphql`, {
+              method: "POST",
+              credentials: "include",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                query: saveMutation,
+                variables: {
+                  input: { name: savedName, search: search || undefined },
+                },
+              }),
+            });
+            const payload = await response.json();
+            if (!payload.data) throw new Error("Sign in to save this search.");
+            setSaveStatus(`Saved “${payload.data.saveSearch.name}”.`);
+          } catch (error) {
+            setSaveStatus(
+              error instanceof Error
+                ? error.message
+                : "Search could not be saved.",
+            );
+          }
+        }}
+      >
+        <label>
+          <span>Saved search name</span>
+          <input
+            value={savedName}
+            minLength={2}
+            maxLength={60}
+            onChange={(event) => setSavedName(event.target.value)}
+            placeholder="Rust opportunities"
+            required
+          />
+        </label>
+        <button type="submit" className="secondary">
+          Save current search
+        </button>
+        <p aria-live="polite">{saveStatus}</p>
+      </form>
       {state === "loading" ? (
         <p className="notice" aria-live="polite">
           Finding published jobs…

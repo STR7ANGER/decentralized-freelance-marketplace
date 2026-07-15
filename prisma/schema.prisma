@@ -60,29 +60,47 @@ model Tenant {
 }
 
 model UserProfile {
-  id          String      @id @default(cuid())
-  tenantId    String
-  displayName String
-  bio         String?
-  role        ProfileRole
-  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  wallets     Wallet[]
-  sessions    Session[]
-  jobs        Job[]       @relation("ClientJobs")
-  proposals   Proposal[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id            String        @id @default(cuid())
+  tenantId      String
+  displayName   String
+  bio           String?
+  role          ProfileRole
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  wallets       Wallet[]
+  sessions      Session[]
+  jobs          Job[]         @relation("ClientJobs")
+  proposals     Proposal[]
+  savedSearches SavedSearch[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   @@index([tenantId, role])
 }
 
+model SavedSearch {
+  id             String      @id @default(cuid())
+  tenantId       String
+  profileId      String
+  name           String
+  search         String?
+  category       String?
+  minBudgetMinor BigInt?
+  maxBudgetMinor BigInt?
+  profile        UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@unique([profileId, name])
+  @@index([tenantId, profileId, createdAt])
+}
+
 model Wallet {
-  id          String      @id @default(cuid())
-  profileId   String
-  address     String
-  cluster     String
-  profile     UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  createdAt   DateTime    @default(now())
+  id        String      @id @default(cuid())
+  profileId String
+  address   String
+  cluster   String
+  profile   UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  createdAt DateTime    @default(now())
 
   @@unique([cluster, address])
   @@index([profileId])
@@ -136,21 +154,21 @@ model Job {
 }
 
 model Proposal {
-  id              String         @id @default(cuid())
-  tenantId        String
-  jobId           String
-  freelancerId    String
-  coverLetter     String
+  id               String         @id @default(cuid())
+  tenantId         String
+  jobId            String
+  freelancerId     String
+  coverLetter      String
   totalAmountMinor BigInt
-  currency        String
-  deliveryDays    Int
-  status          ProposalStatus @default(SUBMITTED)
-  version         Int            @default(1)
-  job             Job            @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  freelancer      UserProfile    @relation(fields: [freelancerId], references: [id], onDelete: Restrict)
-  contract        Contract?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  currency         String
+  deliveryDays     Int
+  status           ProposalStatus @default(SUBMITTED)
+  version          Int            @default(1)
+  job              Job            @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  freelancer       UserProfile    @relation(fields: [freelancerId], references: [id], onDelete: Restrict)
+  contract         Contract?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
   @@unique([jobId, freelancerId])
   @@index([tenantId, jobId, status])

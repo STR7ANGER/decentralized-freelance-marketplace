@@ -30,6 +30,13 @@ export const jobFilterSchema = z.object({
   cursor: z.string().optional(),
   limit: z.number().int().min(1).max(50).default(20),
 });
+export const saveSearchSchema = z.object({
+  name: z.string().trim().min(2).max(60),
+  search: z.string().trim().max(100).optional(),
+  category: z.string().trim().max(60).optional(),
+  minBudgetMinor: z.string().regex(/^\d+$/).optional(),
+  maxBudgetMinor: z.string().regex(/^\d+$/).optional(),
+});
 
 export type CreateJobInput = z.infer<typeof createJobSchema>;
 export type JobFilter = z.infer<typeof jobFilterSchema>;

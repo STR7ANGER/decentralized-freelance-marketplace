@@ -95,6 +95,57 @@ export class PrismaJobRepository implements JobRepository {
       nextCursor: hasMore ? (page.at(-1)?.id ?? null) : null,
     };
   }
+  saveSearch(input: {
+    tenantId: string;
+    profileId: string;
+    name: string;
+    search?: string;
+    category?: string;
+    minBudgetMinor?: bigint;
+    maxBudgetMinor?: bigint;
+  }) {
+    const values = {
+      tenantId: input.tenantId,
+      profileId: input.profileId,
+      name: input.name,
+      search: input.search ?? null,
+      category: input.category ?? null,
+      minBudgetMinor: input.minBudgetMinor ?? null,
+      maxBudgetMinor: input.maxBudgetMinor ?? null,
+    };
+    return prisma.savedSearch.upsert({
+      where: {
+        profileId_name: { profileId: input.profileId, name: input.name },
+      },
+      update: values,
+      create: values,
+      select: {
+        id: true,
+        name: true,
+        search: true,
+        category: true,
+        minBudgetMinor: true,
+        maxBudgetMinor: true,
+        createdAt: true,
+      },
+    });
+  }
+  savedSearches(tenantId: string, profileId: string) {
+    return prisma.savedSearch.findMany({
+      where: { tenantId, profileId },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      select: {
+        id: true,
+        name: true,
+        search: true,
+        category: true,
+        minBudgetMinor: true,
+        maxBudgetMinor: true,
+        createdAt: true,
+      },
+    });
+  }
   async audit(input: {
     tenantId: string;
     actorId: string;

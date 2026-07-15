@@ -4,12 +4,14 @@ import type {
   JobRepository,
   JobSearch,
   JobView,
+  SavedSearchView,
 } from "../src/modules/jobs/ports.js";
 import { JobService } from "../src/modules/jobs/service.js";
 
 class MemoryJobRepository implements JobRepository {
   rows: JobView[] = [];
   audits: string[] = [];
+  saved: SavedSearchView[] = [];
   async findTenant(slug: string) {
     return slug === "demo" ? { id: "tenant-1" } : null;
   }
@@ -45,6 +47,28 @@ class MemoryJobRepository implements JobRepository {
       )
       .slice(0, input.limit);
     return { jobs: rows, nextCursor: null };
+  }
+  async saveSearch(input: {
+    name: string;
+    search?: string;
+    category?: string;
+    minBudgetMinor?: bigint;
+    maxBudgetMinor?: bigint;
+  }) {
+    const saved = {
+      id: "search-1",
+      name: input.name,
+      search: input.search ?? null,
+      category: input.category ?? null,
+      minBudgetMinor: input.minBudgetMinor ?? null,
+      maxBudgetMinor: input.maxBudgetMinor ?? null,
+      createdAt: new Date("2026-07-16"),
+    };
+    this.saved = [saved];
+    return saved;
+  }
+  async savedSearches() {
+    return this.saved;
   }
   async audit(input: { action: string }) {
     this.audits.push(input.action);
@@ -145,5 +169,24 @@ describe("job marketplace", () => {
       jobs: [],
       nextCursor: null,
     });
+  });
+
+  it("saves profile-owned discovery filters without losing money precision", async () => {
+    const repository = new MemoryJobRepository();
+    const service = new JobService(repository);
+    await expect(
+      service.saveSearch(client, {
+        name: "Rust work",
+        search: "rust",
+        minBudgetMinor: "100000",
+      }),
+    ).resolves.toMatchObject({
+      id: "search-1",
+      name: "Rust work",
+      minBudgetMinor: "100000",
+    });
+    await expect(service.savedSearches(client)).resolves.toMatchObject([
+      { id: "search-1", search: "rust" },
+    ]);
   });
 });

@@ -1,4 +1,8 @@
-import { createJobSchema, jobFilterSchema } from "@marketplace/contracts";
+import {
+  createJobSchema,
+  jobFilterSchema,
+  saveSearchSchema,
+} from "@marketplace/contracts";
 import type { AuthProfile } from "../auth/repository.js";
 import type { JobRepository, JobView } from "./ports.js";
 
@@ -11,7 +15,7 @@ export class JobError extends Error {
 }
 export type JobTelemetry = {
   record(event: {
-    name: "job.created" | "jobs.searched";
+    name: "job.created" | "jobs.searched" | "job_search.saved";
     tenantId: string;
     resultCount?: number;
     published?: boolean;
@@ -21,6 +25,14 @@ const serialize = (job: JobView) => ({
   ...job,
   budgetMinor: job.budgetMinor.toString(),
   createdAt: job.createdAt.toISOString(),
+});
+const serializeSavedSearch = (
+  saved: Awaited<ReturnType<JobRepository["saveSearch"]>>,
+) => ({
+  ...saved,
+  minBudgetMinor: saved.minBudgetMinor?.toString() ?? null,
+  maxBudgetMinor: saved.maxBudgetMinor?.toString() ?? null,
+  createdAt: saved.createdAt.toISOString(),
 });
 
 export class JobService {
@@ -82,5 +94,33 @@ export class JobService {
       resultCount: result.jobs.length,
     });
     return { jobs: result.jobs.map(serialize), nextCursor: result.nextCursor };
+  }
+
+  async saveSearch(profile: AuthProfile, raw: unknown) {
+    const input = saveSearchSchema.parse(raw);
+    const saved = await this.repository.saveSearch({
+      tenantId: profile.tenantId,
+      profileId: profile.id,
+      name: input.name,
+      ...(input.search ? { search: input.search } : {}),
+      ...(input.category ? { category: input.category } : {}),
+      ...(input.minBudgetMinor
+        ? { minBudgetMinor: BigInt(input.minBudgetMinor) }
+        : {}),
+      ...(input.maxBudgetMinor
+        ? { maxBudgetMinor: BigInt(input.maxBudgetMinor) }
+        : {}),
+    });
+    this.telemetry.record({
+      name: "job_search.saved",
+      tenantId: profile.tenantId,
+    });
+    return serializeSavedSearch(saved);
+  }
+
+  async savedSearches(profile: AuthProfile) {
+    return (
+      await this.repository.savedSearches(profile.tenantId, profile.id)
+    ).map(serializeSavedSearch);
   }
 }
