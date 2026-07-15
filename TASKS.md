@@ -7,9 +7,9 @@ Complete tasks in order unless a dependency is explicitly removed. Each day has 
 - [x] 1. Design monorepo, local validator, databases, Docker, and CI; write acceptance criteria, contracts, risks, and the smallest vertical slice.
 - [x] 2. Implement monorepo, local validator, databases, Docker, and CI; keep frontend, API, domain logic, workers, and persistence in their declared boundaries.
 - [x] 3. Verify monorepo, local validator, databases, Docker, and CI with tests, failure cases, telemetry, documentation, and a reviewable demo.
-- [ ] 4. Design wallet authentication, nonce verification, profiles, and permissions; write acceptance criteria, contracts, risks, and the smallest vertical slice.
-- [ ] 5. Implement wallet authentication, nonce verification, profiles, and permissions; keep frontend, API, domain logic, workers, and persistence in their declared boundaries.
-- [ ] 6. Verify wallet authentication, nonce verification, profiles, and permissions with tests, failure cases, telemetry, documentation, and a reviewable demo.
+- [x] 4. Design wallet authentication, nonce verification, profiles, and permissions; write acceptance criteria, contracts, risks, and the smallest vertical slice.
+- [x] 5. Implement wallet authentication, nonce verification, profiles, and permissions; keep frontend, API, domain logic, workers, and persistence in their declared boundaries.
+- [x] 6. Verify wallet authentication, nonce verification, profiles, and permissions with tests, failure cases, telemetry, documentation, and a reviewable demo.
 - [ ] 7. Design job discovery, posting, filtering, and GraphQL query layer; write acceptance criteria, contracts, risks, and the smallest vertical slice.
 - [ ] 8. Implement job discovery, posting, filtering, and GraphQL query layer; keep frontend, API, domain logic, workers, and persistence in their declared boundaries.
 - [ ] 9. Verify job discovery, posting, filtering, and GraphQL query layer with tests, failure cases, telemetry, documentation, and a reviewable demo.

@@ -108,6 +108,7 @@ describe("wallet authentication", () => {
       role: "FREELANCER",
     });
     expect(repository.challenge?.nonceHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(repository.tokenHash).not.toBe(result.token);
     expect(repository.audits).toEqual(["auth.wallet_verified"]);
     await expect(
       service.verify({
@@ -125,6 +126,10 @@ describe("wallet authentication", () => {
         requestId: "request-2",
       }),
     ).rejects.toMatchObject({ code: "INVALID_CHALLENGE" });
+    await service.logout(result.token);
+    await expect(service.authenticate(result.token)).rejects.toMatchObject({
+      code: "UNAUTHENTICATED",
+    });
   });
 
   it("rejects malformed addresses, altered messages, and bad signatures", async () => {
@@ -161,5 +166,34 @@ describe("wallet authentication", () => {
         requestId: "request",
       }),
     ).rejects.toMatchObject({ code: "INVALID_SIGNATURE" });
+  });
+
+  it("rejects a correctly signed challenge after its expiry", async () => {
+    const keys = nacl.sign.keyPair();
+    const walletAddress = bs58.encode(keys.publicKey);
+    const repository = new MemoryAuthRepository();
+    let clock = now;
+    const service = new AuthService(repository, config, () => clock);
+    const challenge = await service.challenge({
+      walletAddress,
+      tenantSlug: "demo",
+    });
+    clock = new Date(now.valueOf() + 301_000);
+    await expect(
+      service.verify({
+        challengeId: challenge.challengeId,
+        walletAddress,
+        message: challenge.message,
+        signature: bs58.encode(
+          nacl.sign.detached(
+            new TextEncoder().encode(challenge.message),
+            keys.secretKey,
+          ),
+        ),
+        displayName: "Client",
+        role: "CLIENT",
+        requestId: "request",
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_CHALLENGE" });
   });
 });
