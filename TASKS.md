@@ -30,8 +30,8 @@ Complete tasks in order unless a dependency is explicitly removed. Each day has 
 
 ## Day 3 — Advanced behavior and production hardening (Tasks 21–30)
 
-- [ ] 21. Verify event indexer, confirmation tracking, and transaction history UI with tests, failure cases, telemetry, documentation, and a reviewable demo.
-- [ ] 22. Design dispute evidence, resolver authorization, and recovery paths; write acceptance criteria, contracts, risks, and the smallest vertical slice.
+- [x] 21. Verify event indexer, confirmation tracking, and transaction history UI with tests, failure cases, telemetry, documentation, and a reviewable demo.
+- [x] 22. Design dispute evidence, resolver authorization, and recovery paths; write acceptance criteria, contracts, risks, and the smallest vertical slice.
 - [ ] 23. Implement dispute evidence, resolver authorization, and recovery paths; keep frontend, API, domain logic, workers, and persistence in their declared boundaries.
 - [ ] 24. Verify dispute evidence, resolver authorization, and recovery paths with tests, failure cases, telemetry, documentation, and a reviewable demo.
 - [ ] 25. Design reputation, platform fees, IPFS metadata hashes, and observability; write acceptance criteria, contracts, risks, and the smallest vertical slice.

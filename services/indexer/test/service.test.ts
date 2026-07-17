@@ -64,4 +64,24 @@ describe("event indexer", () => {
     });
     expect(await repository.history("client", 10)).toHaveLength(1);
   });
+
+  it("bounds batches and reports only aggregate telemetry", async () => {
+    const repository = new MemoryRepository();
+    const limits: number[] = [];
+    const telemetry: Array<Record<string, unknown>> = [];
+    const indexer = new EventIndexer(
+      {
+        observations: async (limit) => {
+          limits.push(limit);
+          return [observation];
+        },
+      },
+      repository,
+      { record: (event) => telemetry.push(event) },
+    );
+    expect(await indexer.sync(500)).toBe(1);
+    expect(limits).toEqual([100]);
+    expect(telemetry).toEqual([{ event: "indexer.sync", observations: 1 }]);
+    expect(JSON.stringify(telemetry)).not.toContain("signature");
+  });
 });
