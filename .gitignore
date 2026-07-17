@@ -11,3 +11,5 @@ coverage/
 .local-ledger/
 test-results/
 playwright-report/
+target/
+.anchor/

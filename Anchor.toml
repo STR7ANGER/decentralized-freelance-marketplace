@@ -5,6 +5,9 @@ anchor_version = "1.0.2"
 cluster = "Localnet"
 wallet = "${HOME}/.config/solana/id.json"
 
+[programs.localnet]
+proofwork_escrow = "7LwZweZrjDTouJ5b5GuW6zrT2Pu7jsSgSJAAvV2MdpL2"
+
 [test]
 startup_wait = 10000
 
