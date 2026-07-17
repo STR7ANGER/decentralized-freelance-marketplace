@@ -544,4 +544,29 @@ mod tests {
         assert_eq!(allowed.len(), 3);
         assert!(!allowed.contains(&(MilestoneState::Released, MilestoneState::Approved)));
     }
+
+    #[test]
+    fn sequential_releases_finish_only_after_the_final_milestone() {
+        let mut value = escrow(1_000, 0, 0);
+        value.released_amount = value.released_amount.checked_add(400).unwrap();
+        value.next_milestone = value.next_milestone.checked_add(1).unwrap();
+        assert_eq!(value.remaining().unwrap(), 600);
+        assert_ne!(value.next_milestone, value.milestone_count);
+
+        value.released_amount = value.released_amount.checked_add(600).unwrap();
+        value.next_milestone = value.next_milestone.checked_add(1).unwrap();
+        assert_eq!(value.remaining().unwrap(), 0);
+        assert_eq!(value.next_milestone, value.milestone_count);
+        assert!(value.conservation_holds());
+    }
+
+    #[test]
+    fn expiry_refunds_only_the_unspent_balance() {
+        let mut value = escrow(1_000, 400, 0);
+        let refund = value.remaining().unwrap();
+        value.refunded_amount = value.refunded_amount.checked_add(refund).unwrap();
+        assert_eq!(refund, 600);
+        assert_eq!(value.remaining().unwrap(), 0);
+        assert!(value.conservation_holds());
+    }
 }
