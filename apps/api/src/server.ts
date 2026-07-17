@@ -7,6 +7,8 @@ import { createApp } from "./app.js";
 import { parseEnvironment } from "./env.js";
 import { PrismaAuthRepository } from "./modules/auth/prisma-repository.js";
 import { AuthService } from "./modules/auth/service.js";
+import { PrismaDisputeRepository } from "./modules/disputes/prisma-repository.js";
+import { DisputeService } from "./modules/disputes/service.js";
 import { createMarketplaceGraphQL } from "./modules/jobs/graphql.js";
 import { PrismaJobRepository } from "./modules/jobs/prisma-repository.js";
 import { JobService } from "./modules/jobs/service.js";
@@ -27,8 +29,17 @@ const jobs = new JobService(new PrismaJobRepository(), {
 const proposals = new ProposalService(new PrismaProposalRepository(), {
   record: (event) => console.info(JSON.stringify({ level: "info", ...event })),
 });
+const disputes = new DisputeService(new PrismaDisputeRepository(), {
+  record: (event) => console.info(JSON.stringify({ level: "info", ...event })),
+});
 const history = new TransactionHistoryService(new PrismaChainEventRepository());
-const graphQL = createMarketplaceGraphQL(auth, jobs, proposals, history);
+const graphQL = createMarketplaceGraphQL(
+  auth,
+  jobs,
+  proposals,
+  history,
+  disputes,
+);
 serve({
   fetch: createApp({
     authService: auth,

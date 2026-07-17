@@ -8,7 +8,10 @@ export default function TransactionsPage() {
         <Link href="/" className="brand">
           PROOFWORK
         </Link>
-        <Link href="/jobs">Jobs</Link>
+        <div>
+          <Link href="/disputes">Disputes</Link>
+          <Link href="/jobs">Jobs</Link>
+        </div>
       </nav>
       <header className="page-header">
         <p className="eyebrow">ON-CHAIN ACTIVITY</p>

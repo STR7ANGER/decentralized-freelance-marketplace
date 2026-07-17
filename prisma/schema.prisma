@@ -56,6 +56,11 @@ enum ChainConfirmation {
   FAILED
 }
 
+enum DisputeStatus {
+  OPEN
+  RESOLVED
+}
+
 model Tenant {
   id         String        @id @default(cuid())
   slug       String        @unique
@@ -214,10 +219,33 @@ model Contract {
   freelancerAgreedAt DateTime?
   proposal           Proposal       @relation(fields: [proposalId], references: [id], onDelete: Restrict)
   milestones         Milestone[]
+  disputes           Dispute[]
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
 
   @@index([tenantId, status])
+}
+
+model Dispute {
+  id                    String        @id @default(cuid())
+  tenantId              String
+  contractId            String
+  openedById            String
+  evidenceCid           String
+  evidenceHash          String
+  privateNote           String?
+  status                DisputeStatus @default(OPEN)
+  resolverId            String?
+  clientAmountMinor     BigInt?
+  freelancerAmountMinor BigInt?
+  resolutionHash        String?
+  resolvedAt            DateTime?
+  contract              Contract      @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  @@index([tenantId, status, createdAt])
+  @@index([contractId, createdAt])
 }
 
 model JobMessage {

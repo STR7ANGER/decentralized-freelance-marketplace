@@ -3,6 +3,7 @@ import { GraphQLError } from "graphql";
 import { createSchema, createYoga } from "graphql-yoga";
 import type { AuthService } from "../auth/service.js";
 import { AuthError } from "../auth/service.js";
+import { DisputeError, type DisputeService } from "../disputes/service.js";
 import { ProposalError, type ProposalService } from "../proposals/service.js";
 import { JobError, type JobService } from "./service.js";
 
@@ -13,6 +14,7 @@ const cookie = (request: Request) =>
 const failure = (error: unknown) => {
   if (
     error instanceof AuthError ||
+    error instanceof DisputeError ||
     error instanceof JobError ||
     error instanceof ProposalError
   )
@@ -25,6 +27,7 @@ export function createMarketplaceGraphQL(
   jobs: JobService,
   proposals: ProposalService,
   history: TransactionHistoryService,
+  disputes: DisputeService,
 ) {
   return createYoga({
     graphqlEndpoint: "/graphql",
@@ -38,6 +41,7 @@ export function createMarketplaceGraphQL(
         type Contract { id: ID!, proposalId: ID!, status: String!, version: Int!, termsHash: String!, clientAgreedAt: String, freelancerAgreedAt: String }
         type Message { id: ID!, jobId: ID!, proposalId: ID, authorId: ID!, authorName: String!, body: String!, createdAt: String! }
         type ChainEvent { id: ID!, signature: String!, eventIndex: Int!, programId: String!, slot: String!, confirmation: String!, eventType: String!, blockTime: String, observedAt: String!, updatedAt: String! }
+        type Dispute { id: ID!, contractId: ID!, openedById: ID!, evidenceCid: String!, evidenceHash: String!, status: String!, resolverId: ID, clientAmountMinor: String, freelancerAmountMinor: String, resolutionHash: String, createdAt: String!, resolvedAt: String }
         input JobFilter { search: String, category: String, minBudgetMinor: String, maxBudgetMinor: String, cursor: String, limit: Int = 20 }
         input SaveSearchInput { name: String!, search: String, category: String, minBudgetMinor: String, maxBudgetMinor: String }
         input CreateJobInput { title: String!, description: String!, category: String!, skills: [String!]!, budgetMinor: String!, currency: String!, publish: Boolean = true }
@@ -46,8 +50,10 @@ export function createMarketplaceGraphQL(
         input AcceptProposalInput { proposalId: ID!, expectedVersion: Int! }
         input AgreeContractInput { contractId: ID!, termsHash: String!, signature: String! }
         input MessageInput { jobId: ID!, proposalId: ID, body: String! }
-        type Query { jobs(tenantSlug: String!, filter: JobFilter): JobConnection!, savedSearches: [SavedSearch!]!, proposals(jobId: ID!): [Proposal!]!, messages(jobId: ID!, proposalId: ID, limit: Int): [Message!]!, transactionHistory(limit: Int): [ChainEvent!]! }
-        type Mutation { createJob(input: CreateJobInput!): Job!, saveSearch(input: SaveSearchInput!): SavedSearch!, submitProposal(input: ProposalInput!): Proposal!, acceptProposal(input: AcceptProposalInput!): Contract!, agreeContract(input: AgreeContractInput!): Contract!, sendMessage(input: MessageInput!): Message! }
+        input OpenDisputeInput { contractId: ID!, evidenceCid: String!, evidenceHash: String!, privateNote: String }
+        input ResolveDisputeInput { disputeId: ID!, clientAmountMinor: String!, freelancerAmountMinor: String!, resolutionHash: String! }
+        type Query { jobs(tenantSlug: String!, filter: JobFilter): JobConnection!, savedSearches: [SavedSearch!]!, proposals(jobId: ID!): [Proposal!]!, messages(jobId: ID!, proposalId: ID, limit: Int): [Message!]!, transactionHistory(limit: Int): [ChainEvent!]!, disputes: [Dispute!]! }
+        type Mutation { createJob(input: CreateJobInput!): Job!, saveSearch(input: SaveSearchInput!): SavedSearch!, submitProposal(input: ProposalInput!): Proposal!, acceptProposal(input: AcceptProposalInput!): Contract!, agreeContract(input: AgreeContractInput!): Contract!, sendMessage(input: MessageInput!): Message!, openDispute(input: OpenDisputeInput!): Dispute!, resolveDispute(input: ResolveDisputeInput!): Dispute! }
       `,
       resolvers: {
         Query: {
@@ -119,6 +125,15 @@ export function createMarketplaceGraphQL(
                 observedAt: event.observedAt.toISOString(),
                 updatedAt: event.updatedAt.toISOString(),
               }));
+            } catch (error) {
+              return failure(error);
+            }
+          },
+          disputes: async (_root, _input, context: { request: Request }) => {
+            try {
+              return await disputes.list(
+                await auth.authenticate(cookie(context.request)),
+              );
             } catch (error) {
               return failure(error);
             }
@@ -211,6 +226,38 @@ export function createMarketplaceGraphQL(
               return await proposals.sendMessage(
                 await auth.authenticate(cookie(context.request)),
                 input.input,
+              );
+            } catch (error) {
+              return failure(error);
+            }
+          },
+          openDispute: async (
+            _root,
+            input: { input: unknown },
+            context: { request: Request },
+          ) => {
+            try {
+              return await disputes.open(
+                await auth.authenticate(cookie(context.request)),
+                input.input,
+                context.request.headers.get("x-request-id") ??
+                  crypto.randomUUID(),
+              );
+            } catch (error) {
+              return failure(error);
+            }
+          },
+          resolveDispute: async (
+            _root,
+            input: { input: unknown },
+            context: { request: Request },
+          ) => {
+            try {
+              return await disputes.resolve(
+                await auth.authenticate(cookie(context.request)),
+                input.input,
+                context.request.headers.get("x-request-id") ??
+                  crypto.randomUUID(),
               );
             } catch (error) {
               return failure(error);

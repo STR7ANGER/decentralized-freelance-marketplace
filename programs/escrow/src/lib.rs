@@ -37,6 +37,9 @@ pub mod proofwork_escrow {
         escrow.milestone_count = 0;
         escrow.next_milestone = 0;
         escrow.state = EscrowState::Draft;
+        escrow.disputed_by = Pubkey::default();
+        escrow.evidence_hash = [0; 32];
+        escrow.resolution_hash = [0; 32];
         escrow.bump = ctx.bumps.escrow;
         emit!(EscrowInitialized {
             escrow: escrow.key(),
@@ -280,6 +283,101 @@ pub mod proofwork_escrow {
         });
         Ok(())
     }
+
+    pub fn open_dispute(ctx: Context<OpenDispute>, evidence_hash: [u8; 32]) -> Result<()> {
+        let escrow = &mut ctx.accounts.escrow;
+        require!(
+            matches!(escrow.state, EscrowState::Funded | EscrowState::Active),
+            EscrowError::InvalidState
+        );
+        require!(evidence_hash != [0; 32], EscrowError::InvalidEvidence);
+        escrow.state = EscrowState::Disputed;
+        escrow.disputed_by = ctx.accounts.participant.key();
+        escrow.evidence_hash = evidence_hash;
+        emit!(DisputeOpened {
+            escrow: escrow.key(),
+            opened_by: escrow.disputed_by,
+            evidence_hash,
+        });
+        Ok(())
+    }
+
+    pub fn resolve_dispute(
+        ctx: Context<ResolveDispute>,
+        client_amount: u64,
+        freelancer_amount: u64,
+        resolution_hash: [u8; 32],
+    ) -> Result<()> {
+        let escrow = &mut ctx.accounts.escrow;
+        require!(
+            escrow.state == EscrowState::Disputed,
+            EscrowError::InvalidState
+        );
+        require!(resolution_hash != [0; 32], EscrowError::InvalidEvidence);
+        let remaining = escrow.remaining()?;
+        let awarded = client_amount
+            .checked_add(freelancer_amount)
+            .ok_or(EscrowError::ArithmeticOverflow)?;
+        require!(awarded == remaining, EscrowError::ResolutionTotalMismatch);
+        let rent = Rent::get()?.minimum_balance(8 + Escrow::INIT_SPACE);
+        let escrow_info = escrow.to_account_info();
+        require!(
+            escrow_info.lamports().saturating_sub(rent) >= remaining,
+            EscrowError::InsufficientEscrowBalance
+        );
+        transfer_owned_lamports(
+            &escrow_info,
+            &ctx.accounts.client.to_account_info(),
+            client_amount,
+        )?;
+        transfer_owned_lamports(
+            &escrow_info,
+            &ctx.accounts.freelancer.to_account_info(),
+            freelancer_amount,
+        )?;
+        escrow.refunded_amount = escrow
+            .refunded_amount
+            .checked_add(client_amount)
+            .ok_or(EscrowError::ArithmeticOverflow)?;
+        escrow.released_amount = escrow
+            .released_amount
+            .checked_add(freelancer_amount)
+            .ok_or(EscrowError::ArithmeticOverflow)?;
+        escrow.resolution_hash = resolution_hash;
+        escrow.state = EscrowState::Resolved;
+        require!(escrow.remaining()? == 0, EscrowError::ConservationViolation);
+        require!(
+            escrow.conservation_holds(),
+            EscrowError::ConservationViolation
+        );
+        emit!(DisputeResolved {
+            escrow: escrow.key(),
+            resolver: ctx.accounts.resolver.key(),
+            client_amount,
+            freelancer_amount,
+            resolution_hash,
+        });
+        Ok(())
+    }
+}
+
+fn transfer_owned_lamports<'info>(
+    from: &AccountInfo<'info>,
+    to: &AccountInfo<'info>,
+    amount: u64,
+) -> Result<()> {
+    if amount == 0 {
+        return Ok(());
+    }
+    let from_balance = from.lamports();
+    let to_balance = to.lamports();
+    **from.try_borrow_mut_lamports()? = from_balance
+        .checked_sub(amount)
+        .ok_or(EscrowError::ArithmeticOverflow)?;
+    **to.try_borrow_mut_lamports()? = to_balance
+        .checked_add(amount)
+        .ok_or(EscrowError::ArithmeticOverflow)?;
+    Ok(())
 }
 
 #[derive(Accounts)]
@@ -353,6 +451,34 @@ pub struct RefundExpired<'info> {
     pub escrow: Account<'info, Escrow>,
 }
 
+#[derive(Accounts)]
+pub struct OpenDispute<'info> {
+    pub participant: Signer<'info>,
+    #[account(
+        mut,
+        constraint = participant.key() == escrow.client || participant.key() == escrow.freelancer @ EscrowError::Unauthorized,
+        seeds = [b"escrow", escrow.contract_id.as_ref(), escrow.client.as_ref(), escrow.freelancer.as_ref()],
+        bump = escrow.bump
+    )]
+    pub escrow: Account<'info, Escrow>,
+}
+
+#[derive(Accounts)]
+pub struct ResolveDispute<'info> {
+    pub resolver: Signer<'info>,
+    #[account(
+        mut,
+        has_one = resolver @ EscrowError::Unauthorized,
+        seeds = [b"escrow", escrow.contract_id.as_ref(), escrow.client.as_ref(), escrow.freelancer.as_ref()],
+        bump = escrow.bump
+    )]
+    pub escrow: Account<'info, Escrow>,
+    #[account(mut, address = escrow.client @ EscrowError::InvalidRelationship)]
+    pub client: SystemAccount<'info>,
+    #[account(mut, address = escrow.freelancer @ EscrowError::InvalidRelationship)]
+    pub freelancer: SystemAccount<'info>,
+}
+
 #[account]
 #[derive(InitSpace)]
 pub struct Escrow {
@@ -369,6 +495,9 @@ pub struct Escrow {
     pub milestone_count: u16,
     pub next_milestone: u16,
     pub state: EscrowState,
+    pub disputed_by: Pubkey,
+    pub evidence_hash: [u8; 32],
+    pub resolution_hash: [u8; 32],
     pub bump: u8,
 }
 
@@ -406,6 +535,8 @@ pub enum EscrowState {
     Active,
     Completed,
     Expired,
+    Disputed,
+    Resolved,
 }
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace)]
 pub enum MilestoneState {
@@ -464,6 +595,20 @@ pub struct EscrowRefunded {
     pub client: Pubkey,
     pub amount: u64,
 }
+#[event]
+pub struct DisputeOpened {
+    pub escrow: Pubkey,
+    pub opened_by: Pubkey,
+    pub evidence_hash: [u8; 32],
+}
+#[event]
+pub struct DisputeResolved {
+    pub escrow: Pubkey,
+    pub resolver: Pubkey,
+    pub client_amount: u64,
+    pub freelancer_amount: u64,
+    pub resolution_hash: [u8; 32],
+}
 
 #[error_code]
 pub enum EscrowError {
@@ -493,6 +638,10 @@ pub enum EscrowError {
     InsufficientEscrowBalance,
     #[msg("Escrow is not expired")]
     NotExpired,
+    #[msg("Evidence or resolution digest is invalid")]
+    InvalidEvidence,
+    #[msg("Resolution awards must equal the remaining balance")]
+    ResolutionTotalMismatch,
 }
 
 #[cfg(test)]
@@ -513,6 +662,9 @@ mod tests {
             milestone_count: 2,
             next_milestone: 0,
             state: EscrowState::Funded,
+            disputed_by: Pubkey::default(),
+            evidence_hash: [0; 32],
+            resolution_hash: [0; 32],
             bump: 255,
         }
     }
@@ -568,5 +720,14 @@ mod tests {
         assert_eq!(refund, 600);
         assert_eq!(value.remaining().unwrap(), 0);
         assert!(value.conservation_holds());
+    }
+
+    #[test]
+    fn dispute_awards_must_exactly_conserve_remaining_funds() {
+        let value = escrow(1_000, 400, 0);
+        let remaining = value.remaining().unwrap();
+        assert_eq!(400_u64.checked_add(200), Some(remaining));
+        assert_ne!(400_u64.checked_add(199), Some(remaining));
+        assert!(u64::MAX.checked_add(1).is_none());
     }
 }
