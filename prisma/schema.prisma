@@ -71,6 +71,7 @@ model UserProfile {
   jobs          Job[]         @relation("ClientJobs")
   proposals     Proposal[]
   savedSearches SavedSearch[]
+  messages      JobMessage[]
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -133,7 +134,7 @@ model Session {
 }
 
 model Job {
-  id          String      @id @default(cuid())
+  id          String       @id @default(cuid())
   tenantId    String
   clientId    String
   title       String
@@ -142,19 +143,20 @@ model Job {
   skills      String[]
   budgetMinor BigInt
   currency    String
-  status      JobStatus   @default(DRAFT)
-  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  client      UserProfile @relation("ClientJobs", fields: [clientId], references: [id], onDelete: Restrict)
+  status      JobStatus    @default(DRAFT)
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client      UserProfile  @relation("ClientJobs", fields: [clientId], references: [id], onDelete: Restrict)
   proposals   Proposal[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  messages    JobMessage[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
   @@index([tenantId, status, createdAt])
   @@index([tenantId, category, budgetMinor])
 }
 
 model Proposal {
-  id               String         @id @default(cuid())
+  id               String             @id @default(cuid())
   tenantId         String
   jobId            String
   freelancerId     String
@@ -162,30 +164,69 @@ model Proposal {
   totalAmountMinor BigInt
   currency         String
   deliveryDays     Int
-  status           ProposalStatus @default(SUBMITTED)
-  version          Int            @default(1)
-  job              Job            @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  freelancer       UserProfile    @relation(fields: [freelancerId], references: [id], onDelete: Restrict)
+  status           ProposalStatus     @default(SUBMITTED)
+  version          Int                @default(1)
+  termsHash        String
+  milestoneDraft   Json
+  job              Job                @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  freelancer       UserProfile        @relation(fields: [freelancerId], references: [id], onDelete: Restrict)
   contract         Contract?
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  revisions        ProposalRevision[]
+  messages         JobMessage[]
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
 
   @@unique([jobId, freelancerId])
   @@index([tenantId, jobId, status])
 }
 
+model ProposalRevision {
+  id               String   @id @default(cuid())
+  proposalId       String
+  version          Int
+  coverLetter      String
+  totalAmountMinor BigInt
+  currency         String
+  deliveryDays     Int
+  termsHash        String
+  milestoneDraft   Json
+  proposal         Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+
+  @@unique([proposalId, version])
+}
+
 model Contract {
-  id         String         @id @default(cuid())
-  tenantId   String
-  proposalId String         @unique
-  status     ContractStatus @default(NEGOTIATING)
-  version    Int            @default(1)
-  proposal   Proposal       @relation(fields: [proposalId], references: [id], onDelete: Restrict)
-  milestones Milestone[]
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
+  id                 String         @id @default(cuid())
+  tenantId           String
+  proposalId         String         @unique
+  status             ContractStatus @default(NEGOTIATING)
+  version            Int            @default(1)
+  termsHash          String
+  clientAgreedAt     DateTime?
+  freelancerAgreedAt DateTime?
+  proposal           Proposal       @relation(fields: [proposalId], references: [id], onDelete: Restrict)
+  milestones         Milestone[]
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
 
   @@index([tenantId, status])
+}
+
+model JobMessage {
+  id         String      @id @default(cuid())
+  tenantId   String
+  jobId      String
+  proposalId String?
+  authorId   String
+  body       String
+  job        Job         @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  proposal   Proposal?   @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  author     UserProfile @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  createdAt  DateTime    @default(now())
+
+  @@index([tenantId, jobId, createdAt])
+  @@index([proposalId, createdAt])
 }
 
 model Milestone {

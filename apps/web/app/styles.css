@@ -225,6 +225,48 @@ textarea:focus {
   max-width: 750px;
   line-height: 1.55;
 }
+.inline-link {
+  display: inline-block;
+  margin-top: 14px;
+  color: var(--acid);
+  font-weight: 700;
+}
+.proposal-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.85fr) minmax(400px, 1.15fr);
+  gap: 16px;
+}
+.dashboard-panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 28px;
+}
+.compact {
+  padding: 0;
+  border: 0;
+}
+.metric-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+}
+.proposal-list {
+  display: grid;
+  gap: 12px;
+}
+.proposal-list article {
+  border-top: 1px solid var(--line);
+  padding: 20px 0;
+}
+.proposal-list p,
+.proposal-list li {
+  color: var(--muted);
+  line-height: 1.5;
+}
+.proposal-list code {
+  color: var(--acid);
+}
 .pill,
 .job-meta span {
   display: inline-block;
@@ -279,6 +321,9 @@ textarea:focus {
     gap: 12px;
   }
   .save-search {
+    grid-template-columns: 1fr;
+  }
+  .proposal-layout {
     grid-template-columns: 1fr;
   }
 }

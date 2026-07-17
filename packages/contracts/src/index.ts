@@ -37,6 +37,39 @@ export const saveSearchSchema = z.object({
   minBudgetMinor: z.string().regex(/^\d+$/).optional(),
   maxBudgetMinor: z.string().regex(/^\d+$/).optional(),
 });
+export const milestoneDraftSchema = z
+  .array(
+    z.object({
+      title: z.string().trim().min(3).max(120),
+      amountMinor: z.string().regex(/^\d+$/),
+      dueAt: z.string().datetime(),
+    }),
+  )
+  .min(1)
+  .max(20);
+export const proposalSchema = z.object({
+  jobId: z.string().min(1),
+  coverLetter: z.string().trim().min(30).max(5000),
+  totalAmountMinor: z.string().regex(/^\d+$/),
+  currency: z.string().trim().length(3),
+  deliveryDays: z.number().int().min(1).max(730),
+  milestones: milestoneDraftSchema,
+  expectedVersion: z.number().int().positive().optional(),
+});
+export const messageSchema = z.object({
+  jobId: z.string().min(1),
+  proposalId: z.string().min(1).optional(),
+  body: z.string().trim().min(1).max(5000),
+});
+export const acceptProposalSchema = z.object({
+  proposalId: z.string().min(1),
+  expectedVersion: z.number().int().positive(),
+});
+export const agreeContractSchema = z.object({
+  contractId: z.string().min(1),
+  termsHash: z.string().regex(/^[a-f0-9]{64}$/),
+  signature: z.string().min(1).max(128),
+});
 
 export type CreateJobInput = z.infer<typeof createJobSchema>;
 export type JobFilter = z.infer<typeof jobFilterSchema>;

@@ -17,9 +17,9 @@ Complete tasks in order unless a dependency is explicitly removed. Each day has 
 
 ## Day 2 — Core workflows and integrations (Tasks 11–20)
 
-- [ ] 11. Implement proposal comparison, messaging boundary, and contract negotiation; keep frontend, API, domain logic, workers, and persistence in their declared boundaries.
-- [ ] 12. Verify proposal comparison, messaging boundary, and contract negotiation with tests, failure cases, telemetry, documentation, and a reviewable demo.
-- [ ] 13. Design Rust escrow accounts, PDA design, funding, and invariant tests; write acceptance criteria, contracts, risks, and the smallest vertical slice.
+- [x] 11. Implement proposal comparison, messaging boundary, and contract negotiation; keep frontend, API, domain logic, workers, and persistence in their declared boundaries.
+- [x] 12. Verify proposal comparison, messaging boundary, and contract negotiation with tests, failure cases, telemetry, documentation, and a reviewable demo.
+- [x] 13. Design Rust escrow accounts, PDA design, funding, and invariant tests; write acceptance criteria, contracts, risks, and the smallest vertical slice.
 - [ ] 14. Implement Rust escrow accounts, PDA design, funding, and invariant tests; keep frontend, API, domain logic, workers, and persistence in their declared boundaries.
 - [ ] 15. Verify Rust escrow accounts, PDA design, funding, and invariant tests with tests, failure cases, telemetry, documentation, and a reviewable demo.
 - [ ] 16. Design milestone submission, approval, release, refund, and expiry flows; write acceptance criteria, contracts, risks, and the smallest vertical slice.

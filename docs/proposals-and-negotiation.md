@@ -1,6 +1,6 @@
 # Proposal comparison, messaging boundary, and contract negotiation design
 
-Task 10 fixes the boundary and invariants; implementation begins in Task 11.
+Task 10 fixed the boundary and invariants. Tasks 11–12 now implement the GraphQL/application flow, immutable proposal revisions, wallet-signed dual agreement, participant messaging, comparison UI, and failure tests.
 
 ## Domain contracts
 

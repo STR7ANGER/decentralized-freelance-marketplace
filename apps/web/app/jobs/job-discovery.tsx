@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 type Job = {
@@ -126,6 +127,12 @@ export function JobDiscovery() {
                 <h2>{job.title}</h2>
                 <p>{job.description}</p>
                 <small>Posted by {job.clientName}</small>
+                <Link
+                  className="inline-link"
+                  href={`/jobs/${job.id}/proposals`}
+                >
+                  Propose or compare terms →
+                </Link>
               </div>
               <div className="job-meta">
                 <strong>
