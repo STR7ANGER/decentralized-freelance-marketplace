@@ -8,7 +8,10 @@ export default function JobsPage() {
         <Link href="/" className="brand">
           PROOFWORK
         </Link>
-        <Link href="/jobs/new">Post a job</Link>
+        <div>
+          <Link href="/transactions">Transactions</Link>
+          <Link href="/jobs/new">Post a job</Link>
+        </div>
       </nav>
       <header className="page-header">
         <p className="eyebrow">OPEN OPPORTUNITIES</p>

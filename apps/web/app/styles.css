@@ -231,6 +231,36 @@ textarea:focus {
   color: var(--acid);
   font-weight: 700;
 }
+.transaction-list {
+  display: grid;
+  gap: 12px;
+}
+.transaction-list article {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 24px;
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: center;
+}
+.transaction-list h2 {
+  font-family: monospace;
+  margin: 8px 0;
+}
+.confirmation {
+  border: 1px solid currentColor;
+  padding: 8px 10px;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: #f0c96b;
+}
+.confirmation.finalized {
+  color: var(--acid);
+}
+.confirmation.failed {
+  color: #fc786c;
+}
 .proposal-layout {
   display: grid;
   grid-template-columns: minmax(320px, 0.85fr) minmax(400px, 1.15fr);

@@ -49,6 +49,13 @@ enum MilestoneStatus {
   EXPIRED
 }
 
+enum ChainConfirmation {
+  PROCESSED
+  CONFIRMED
+  FINALIZED
+  FAILED
+}
+
 model Tenant {
   id         String        @id @default(cuid())
   slug       String        @unique
@@ -256,4 +263,23 @@ model AuditEvent {
   createdAt  DateTime @default(now())
 
   @@index([tenantId, createdAt])
+}
+
+model ChainEvent {
+  id                   String            @id @default(cuid())
+  signature            String
+  eventIndex           Int
+  programId            String
+  slot                 BigInt
+  confirmation         ChainConfirmation
+  eventType            String
+  participantAddresses String[]
+  payload              Json?
+  blockTime            DateTime?
+  observedAt           DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  @@unique([signature, eventIndex])
+  @@index([programId, slot])
+  @@index([confirmation, updatedAt])
 }

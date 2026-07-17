@@ -12,6 +12,7 @@
   "dependencies": {
     "@hono/node-server": "^1.19.0",
     "@marketplace/contracts": "*",
+    "@marketplace/indexer": "*",
     "@prisma/client": "^6.19.3",
     "@solana/kit": "^7.0.0",
     "bs58": "^6.0.0",

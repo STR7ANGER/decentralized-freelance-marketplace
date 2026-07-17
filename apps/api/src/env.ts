@@ -18,6 +18,11 @@ const schema = z.object({
   SESSION_SECRET: z.string().min(32),
   SOLANA_CLUSTER: z.enum(["localnet", "devnet"]),
   SOLANA_RPC_URL: z.string().url(),
+  ESCROW_PROGRAM_ID: z
+    .string()
+    .min(32)
+    .max(44)
+    .default("7LwZweZrjDTouJ5b5GuW6zrT2Pu7jsSgSJAAvV2MdpL2"),
   AUTH_DOMAIN: z.string().min(1),
   AUTH_NONCE_TTL_SECONDS: z.coerce.number().int().min(60).max(900).default(300),
 });

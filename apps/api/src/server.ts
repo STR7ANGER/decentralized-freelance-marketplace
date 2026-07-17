@@ -1,4 +1,8 @@
 import { serve } from "@hono/node-server";
+import {
+  PrismaChainEventRepository,
+  TransactionHistoryService,
+} from "@marketplace/indexer";
 import { createApp } from "./app.js";
 import { parseEnvironment } from "./env.js";
 import { PrismaAuthRepository } from "./modules/auth/prisma-repository.js";
@@ -23,7 +27,8 @@ const jobs = new JobService(new PrismaJobRepository(), {
 const proposals = new ProposalService(new PrismaProposalRepository(), {
   record: (event) => console.info(JSON.stringify({ level: "info", ...event })),
 });
-const graphQL = createMarketplaceGraphQL(auth, jobs, proposals);
+const history = new TransactionHistoryService(new PrismaChainEventRepository());
+const graphQL = createMarketplaceGraphQL(auth, jobs, proposals, history);
 serve({
   fetch: createApp({
     authService: auth,

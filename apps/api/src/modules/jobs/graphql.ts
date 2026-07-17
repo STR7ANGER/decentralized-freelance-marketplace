@@ -1,3 +1,4 @@
+import type { TransactionHistoryService } from "@marketplace/indexer";
 import { GraphQLError } from "graphql";
 import { createSchema, createYoga } from "graphql-yoga";
 import type { AuthService } from "../auth/service.js";
@@ -23,6 +24,7 @@ export function createMarketplaceGraphQL(
   auth: AuthService,
   jobs: JobService,
   proposals: ProposalService,
+  history: TransactionHistoryService,
 ) {
   return createYoga({
     graphqlEndpoint: "/graphql",
@@ -35,6 +37,7 @@ export function createMarketplaceGraphQL(
         type Proposal { id: ID!, jobId: ID!, freelancerId: ID!, freelancerName: String!, coverLetter: String!, totalAmountMinor: String!, currency: String!, deliveryDays: Int!, status: String!, version: Int!, termsHash: String!, milestones: [MilestoneDraft!]!, createdAt: String! }
         type Contract { id: ID!, proposalId: ID!, status: String!, version: Int!, termsHash: String!, clientAgreedAt: String, freelancerAgreedAt: String }
         type Message { id: ID!, jobId: ID!, proposalId: ID, authorId: ID!, authorName: String!, body: String!, createdAt: String! }
+        type ChainEvent { id: ID!, signature: String!, eventIndex: Int!, programId: String!, slot: String!, confirmation: String!, eventType: String!, blockTime: String, observedAt: String!, updatedAt: String! }
         input JobFilter { search: String, category: String, minBudgetMinor: String, maxBudgetMinor: String, cursor: String, limit: Int = 20 }
         input SaveSearchInput { name: String!, search: String, category: String, minBudgetMinor: String, maxBudgetMinor: String }
         input CreateJobInput { title: String!, description: String!, category: String!, skills: [String!]!, budgetMinor: String!, currency: String!, publish: Boolean = true }
@@ -43,7 +46,7 @@ export function createMarketplaceGraphQL(
         input AcceptProposalInput { proposalId: ID!, expectedVersion: Int! }
         input AgreeContractInput { contractId: ID!, termsHash: String!, signature: String! }
         input MessageInput { jobId: ID!, proposalId: ID, body: String! }
-        type Query { jobs(tenantSlug: String!, filter: JobFilter): JobConnection!, savedSearches: [SavedSearch!]!, proposals(jobId: ID!): [Proposal!]!, messages(jobId: ID!, proposalId: ID, limit: Int): [Message!]! }
+        type Query { jobs(tenantSlug: String!, filter: JobFilter): JobConnection!, savedSearches: [SavedSearch!]!, proposals(jobId: ID!): [Proposal!]!, messages(jobId: ID!, proposalId: ID, limit: Int): [Message!]!, transactionHistory(limit: Int): [ChainEvent!]! }
         type Mutation { createJob(input: CreateJobInput!): Job!, saveSearch(input: SaveSearchInput!): SavedSearch!, submitProposal(input: ProposalInput!): Proposal!, acceptProposal(input: AcceptProposalInput!): Contract!, agreeContract(input: AgreeContractInput!): Contract!, sendMessage(input: MessageInput!): Message! }
       `,
       resolvers: {
@@ -94,6 +97,28 @@ export function createMarketplaceGraphQL(
                 await auth.authenticate(cookie(context.request)),
                 input,
               );
+            } catch (error) {
+              return failure(error);
+            }
+          },
+          transactionHistory: async (
+            _root,
+            input: { limit?: number },
+            context: { request: Request },
+          ) => {
+            try {
+              const profile = await auth.authenticate(cookie(context.request));
+              const events = await history.history(
+                profile.walletAddress,
+                input.limit,
+              );
+              return events.map((event) => ({
+                ...event,
+                slot: event.slot.toString(),
+                blockTime: event.blockTime?.toISOString() ?? null,
+                observedAt: event.observedAt.toISOString(),
+                updatedAt: event.updatedAt.toISOString(),
+              }));
             } catch (error) {
               return failure(error);
             }
