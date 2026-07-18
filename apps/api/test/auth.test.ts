@@ -1,6 +1,7 @@
 import bs58 from "bs58";
 import nacl from "tweetnacl";
 import { describe, expect, it } from "vitest";
+import { createApp } from "../src/app.js";
 import type {
   AuthProfile,
   AuthRepository,
@@ -195,5 +196,60 @@ describe("wallet authentication", () => {
         requestId: "request",
       }),
     ).rejects.toMatchObject({ code: "INVALID_CHALLENGE" });
+  });
+
+  it("completes the HTTP wallet flow and rejects nonce replay", async () => {
+    const keys = nacl.sign.keyPair();
+    const walletAddress = bs58.encode(keys.publicKey);
+    const service = new AuthService(
+      new MemoryAuthRepository(),
+      config,
+      () => now,
+    );
+    const app = createApp({ authService: service });
+    const challengeResponse = await app.request("/v1/auth/challenge", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ walletAddress, tenantSlug: "demo" }),
+    });
+    expect(challengeResponse.status).toBe(201);
+    const challenge = (await challengeResponse.json()) as {
+      challengeId: string;
+      message: string;
+    };
+    const payload = {
+      challengeId: challenge.challengeId,
+      walletAddress,
+      message: challenge.message,
+      signature: bs58.encode(
+        nacl.sign.detached(
+          new TextEncoder().encode(challenge.message),
+          keys.secretKey,
+        ),
+      ),
+      displayName: "HTTP Freelancer",
+      role: "FREELANCER",
+    };
+    const verified = await app.request("/v1/auth/verify", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    expect(verified.status).toBe(200);
+    const cookie = verified.headers.get("set-cookie")?.split(";")[0];
+    expect(cookie).toContain("marketplace_session=");
+    const me = await app.request("/v1/auth/me", {
+      headers: { cookie: cookie ?? "" },
+    });
+    expect(me.status).toBe(200);
+    await expect(me.json()).resolves.toMatchObject({
+      profile: { walletAddress, role: "FREELANCER" },
+    });
+    const replay = await app.request("/v1/auth/verify", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    expect(replay.status).toBe(400);
   });
 });

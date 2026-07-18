@@ -1,6 +1,6 @@
 # Proofwork — Decentralized Freelance Marketplace
 
-Proofwork combines off-chain job/proposal workflows with future program-controlled Solana milestone escrow. Today’s slice includes the independently runnable Next.js frontend and Hono API, tenant-scoped PostgreSQL schema, Wallet Standard connection, signed-nonce authentication, public job discovery, authenticated job posting, local infrastructure, and CI.
+Proofwork combines off-chain job, proposal, dispute, and reputation workflows with program-controlled native SOL milestone escrow. It includes a Next.js frontend, Hono/GraphQL API, PostgreSQL persistence, an idempotent Solana event indexer, Wallet Standard authentication, an Anchor escrow with capped fees and resolver recovery, and CI.
 
 ## Local start
 
@@ -19,7 +19,9 @@ Run `npm run dev:api` and `npm run dev` in separate terminals. The validator com
 ```sh
 npm run check
 npm run build
+npm run program:test
+npm run program:build
 docker compose config --quiet
 ```
 
-See `docs/demo.md` for the review flow and `docs/architecture.md` for service boundaries.
+See `docs/demo.md` for the review flow, `docs/architecture.md` for service boundaries, `docs/security-review.md` for residual risks, and `docs/deployment.md` for localnet/devnet release gates.

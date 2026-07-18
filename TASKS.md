@@ -37,9 +37,9 @@ Complete tasks in order unless a dependency is explicitly removed. Each day has 
 - [x] 25. Design reputation, platform fees, IPFS metadata hashes, and observability; write acceptance criteria, contracts, risks, and the smallest vertical slice.
 - [x] 26. Implement reputation, platform fees, IPFS metadata hashes, and observability; keep frontend, API, domain logic, workers, and persistence in their declared boundaries.
 - [x] 27. Verify reputation, platform fees, IPFS metadata hashes, and observability with tests, failure cases, telemetry, documentation, and a reviewable demo.
-- [ ] 28. Design adversarial program tests, E2E wallet flow, security review, and deployment guide; write acceptance criteria, contracts, risks, and the smallest vertical slice.
-- [ ] 29. Implement adversarial program tests, E2E wallet flow, security review, and deployment guide; keep frontend, API, domain logic, workers, and persistence in their declared boundaries.
-- [ ] 30. Verify adversarial program tests, E2E wallet flow, security review, and deployment guide with tests, failure cases, telemetry, documentation, and a reviewable demo.
+- [x] 28. Design adversarial program tests, E2E wallet flow, security review, and deployment guide; write acceptance criteria, contracts, risks, and the smallest vertical slice.
+- [x] 29. Implement adversarial program tests, E2E wallet flow, security review, and deployment guide; keep frontend, API, domain logic, workers, and persistence in their declared boundaries.
+- [x] 30. Verify adversarial program tests, E2E wallet flow, security review, and deployment guide with tests, failure cases, telemetry, documentation, and a reviewable demo.
 
 ## Task completion checklist
 

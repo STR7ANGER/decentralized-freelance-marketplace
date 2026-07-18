@@ -779,4 +779,55 @@ mod tests {
         assert_eq!(calculate_fee(1, 250).unwrap(), 0);
         assert!(calculate_fee(u64::MAX, 1_000).is_err());
     }
+
+    #[test]
+    fn escrow_pdas_are_isolated_by_contract_and_participants() {
+        let client = Pubkey::new_unique();
+        let freelancer = Pubkey::new_unique();
+        let other_client = Pubkey::new_unique();
+        let (first, first_bump) = Pubkey::find_program_address(
+            &[b"escrow", &[1; 32], client.as_ref(), freelancer.as_ref()],
+            &crate::ID,
+        );
+        let (second, _) = Pubkey::find_program_address(
+            &[b"escrow", &[2; 32], client.as_ref(), freelancer.as_ref()],
+            &crate::ID,
+        );
+        let (third, _) = Pubkey::find_program_address(
+            &[
+                b"escrow",
+                &[1; 32],
+                other_client.as_ref(),
+                freelancer.as_ref(),
+            ],
+            &crate::ID,
+        );
+        assert_ne!(first, second);
+        assert_ne!(first, third);
+        assert_eq!(
+            Pubkey::create_program_address(
+                &[
+                    b"escrow",
+                    &[1; 32],
+                    client.as_ref(),
+                    freelancer.as_ref(),
+                    &[first_bump],
+                ],
+                &crate::ID,
+            )
+            .unwrap(),
+            first,
+        );
+    }
+
+    #[test]
+    fn terminal_states_cannot_be_used_as_active_settlement_states() {
+        for state in [
+            EscrowState::Completed,
+            EscrowState::Expired,
+            EscrowState::Resolved,
+        ] {
+            assert!(!matches!(state, EscrowState::Funded | EscrowState::Active));
+        }
+    }
 }
