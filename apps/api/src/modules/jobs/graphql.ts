@@ -5,6 +5,10 @@ import type { AuthService } from "../auth/service.js";
 import { AuthError } from "../auth/service.js";
 import { DisputeError, type DisputeService } from "../disputes/service.js";
 import { ProposalError, type ProposalService } from "../proposals/service.js";
+import {
+  ReputationError,
+  type ReputationService,
+} from "../reputation/service.js";
 import { JobError, type JobService } from "./service.js";
 
 const cookie = (request: Request) =>
@@ -16,7 +20,8 @@ const failure = (error: unknown) => {
     error instanceof AuthError ||
     error instanceof DisputeError ||
     error instanceof JobError ||
-    error instanceof ProposalError
+    error instanceof ProposalError ||
+    error instanceof ReputationError
   )
     throw new GraphQLError(error.code, { extensions: { code: error.code } });
   throw error;
@@ -28,6 +33,7 @@ export function createMarketplaceGraphQL(
   proposals: ProposalService,
   history: TransactionHistoryService,
   disputes: DisputeService,
+  reputation: ReputationService,
 ) {
   return createYoga({
     graphqlEndpoint: "/graphql",
@@ -42,6 +48,8 @@ export function createMarketplaceGraphQL(
         type Message { id: ID!, jobId: ID!, proposalId: ID, authorId: ID!, authorName: String!, body: String!, createdAt: String! }
         type ChainEvent { id: ID!, signature: String!, eventIndex: Int!, programId: String!, slot: String!, confirmation: String!, eventType: String!, blockTime: String, observedAt: String!, updatedAt: String! }
         type Dispute { id: ID!, contractId: ID!, openedById: ID!, evidenceCid: String!, evidenceHash: String!, status: String!, resolverId: ID, clientAmountMinor: String, freelancerAmountMinor: String, resolutionHash: String, createdAt: String!, resolvedAt: String }
+        type Review { id: ID!, rating: Int!, commentHash: String!, metadataCid: String, createdAt: String! }
+        type Reputation { count: Int!, average: Float!, reviews: [Review!]! }
         input JobFilter { search: String, category: String, minBudgetMinor: String, maxBudgetMinor: String, cursor: String, limit: Int = 20 }
         input SaveSearchInput { name: String!, search: String, category: String, minBudgetMinor: String, maxBudgetMinor: String }
         input CreateJobInput { title: String!, description: String!, category: String!, skills: [String!]!, budgetMinor: String!, currency: String!, publish: Boolean = true }
@@ -52,8 +60,9 @@ export function createMarketplaceGraphQL(
         input MessageInput { jobId: ID!, proposalId: ID, body: String! }
         input OpenDisputeInput { contractId: ID!, evidenceCid: String!, evidenceHash: String!, privateNote: String }
         input ResolveDisputeInput { disputeId: ID!, clientAmountMinor: String!, freelancerAmountMinor: String!, resolutionHash: String! }
-        type Query { jobs(tenantSlug: String!, filter: JobFilter): JobConnection!, savedSearches: [SavedSearch!]!, proposals(jobId: ID!): [Proposal!]!, messages(jobId: ID!, proposalId: ID, limit: Int): [Message!]!, transactionHistory(limit: Int): [ChainEvent!]!, disputes: [Dispute!]! }
-        type Mutation { createJob(input: CreateJobInput!): Job!, saveSearch(input: SaveSearchInput!): SavedSearch!, submitProposal(input: ProposalInput!): Proposal!, acceptProposal(input: AcceptProposalInput!): Contract!, agreeContract(input: AgreeContractInput!): Contract!, sendMessage(input: MessageInput!): Message!, openDispute(input: OpenDisputeInput!): Dispute!, resolveDispute(input: ResolveDisputeInput!): Dispute! }
+        input ReviewInput { contractId: ID!, rating: Int!, commentHash: String!, metadataCid: String }
+        type Query { jobs(tenantSlug: String!, filter: JobFilter): JobConnection!, savedSearches: [SavedSearch!]!, proposals(jobId: ID!): [Proposal!]!, messages(jobId: ID!, proposalId: ID, limit: Int): [Message!]!, transactionHistory(limit: Int): [ChainEvent!]!, disputes: [Dispute!]!, reputation(profileId: ID!): Reputation! }
+        type Mutation { createJob(input: CreateJobInput!): Job!, saveSearch(input: SaveSearchInput!): SavedSearch!, submitProposal(input: ProposalInput!): Proposal!, acceptProposal(input: AcceptProposalInput!): Contract!, agreeContract(input: AgreeContractInput!): Contract!, sendMessage(input: MessageInput!): Message!, openDispute(input: OpenDisputeInput!): Dispute!, resolveDispute(input: ResolveDisputeInput!): Dispute!, submitReview(input: ReviewInput!): Review! }
       `,
       resolvers: {
         Query: {
@@ -133,6 +142,20 @@ export function createMarketplaceGraphQL(
             try {
               return await disputes.list(
                 await auth.authenticate(cookie(context.request)),
+              );
+            } catch (error) {
+              return failure(error);
+            }
+          },
+          reputation: async (
+            _root,
+            input: { profileId: string },
+            context: { request: Request },
+          ) => {
+            try {
+              return await reputation.get(
+                await auth.authenticate(cookie(context.request)),
+                input.profileId,
               );
             } catch (error) {
               return failure(error);
@@ -258,6 +281,20 @@ export function createMarketplaceGraphQL(
                 input.input,
                 context.request.headers.get("x-request-id") ??
                   crypto.randomUUID(),
+              );
+            } catch (error) {
+              return failure(error);
+            }
+          },
+          submitReview: async (
+            _root,
+            input: { input: unknown },
+            context: { request: Request },
+          ) => {
+            try {
+              return await reputation.submit(
+                await auth.authenticate(cookie(context.request)),
+                input.input,
               );
             } catch (error) {
               return failure(error);

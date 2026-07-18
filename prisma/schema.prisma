@@ -209,21 +209,38 @@ model ProposalRevision {
 }
 
 model Contract {
-  id                 String         @id @default(cuid())
+  id                 String             @id @default(cuid())
   tenantId           String
-  proposalId         String         @unique
-  status             ContractStatus @default(NEGOTIATING)
-  version            Int            @default(1)
+  proposalId         String             @unique
+  status             ContractStatus     @default(NEGOTIATING)
+  version            Int                @default(1)
   termsHash          String
   clientAgreedAt     DateTime?
   freelancerAgreedAt DateTime?
-  proposal           Proposal       @relation(fields: [proposalId], references: [id], onDelete: Restrict)
+  proposal           Proposal           @relation(fields: [proposalId], references: [id], onDelete: Restrict)
   milestones         Milestone[]
   disputes           Dispute[]
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
+  reviews            ReputationReview[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
   @@index([tenantId, status])
+}
+
+model ReputationReview {
+  id          String   @id @default(cuid())
+  tenantId    String
+  contractId  String
+  reviewerId  String
+  revieweeId  String
+  rating      Int
+  commentHash String
+  metadataCid String?
+  contract    Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([contractId, reviewerId])
+  @@index([tenantId, revieweeId, createdAt])
 }
 
 model Dispute {

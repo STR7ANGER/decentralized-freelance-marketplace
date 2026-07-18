@@ -12,6 +12,7 @@ pub mod proofwork_escrow {
         contract_id: [u8; 32],
         total_amount: u64,
         expires_at: i64,
+        fee_bps: u16,
     ) -> Result<()> {
         require!(total_amount > 0, EscrowError::InvalidAmount);
         require!(
@@ -23,11 +24,15 @@ pub mod proofwork_escrow {
             ctx.accounts.freelancer.key(),
             EscrowError::DuplicateParticipant
         );
+        require!(fee_bps <= 1_000, EscrowError::FeeTooHigh);
         let escrow = &mut ctx.accounts.escrow;
         escrow.contract_id = contract_id;
         escrow.client = ctx.accounts.client.key();
         escrow.freelancer = ctx.accounts.freelancer.key();
         escrow.resolver = ctx.accounts.resolver.key();
+        escrow.fee_recipient = ctx.accounts.fee_recipient.key();
+        escrow.fee_bps = fee_bps;
+        escrow.platform_fee_paid = 0;
         escrow.total_amount = total_amount;
         escrow.planned_amount = 0;
         escrow.funded_amount = 0;
@@ -204,6 +209,12 @@ pub mod proofwork_escrow {
         let rent = Rent::get()?.minimum_balance(8 + Escrow::INIT_SPACE);
         let escrow_info = escrow.to_account_info();
         let freelancer_info = ctx.accounts.freelancer.to_account_info();
+        let fee_info = ctx.accounts.fee_recipient.to_account_info();
+        let fee = calculate_fee(milestone.amount, escrow.fee_bps)?;
+        let freelancer_amount = milestone
+            .amount
+            .checked_sub(fee)
+            .ok_or(EscrowError::ArithmeticOverflow)?;
         require!(
             escrow_info.lamports().saturating_sub(rent) >= milestone.amount,
             EscrowError::InsufficientEscrowBalance
@@ -214,12 +225,22 @@ pub mod proofwork_escrow {
             .checked_sub(milestone.amount)
             .ok_or(EscrowError::ArithmeticOverflow)?;
         **freelancer_info.try_borrow_mut_lamports()? = freelancer_lamports
-            .checked_add(milestone.amount)
+            .checked_add(freelancer_amount)
             .ok_or(EscrowError::ArithmeticOverflow)?;
+        if fee > 0 {
+            let fee_balance = fee_info.lamports();
+            **fee_info.try_borrow_mut_lamports()? = fee_balance
+                .checked_add(fee)
+                .ok_or(EscrowError::ArithmeticOverflow)?;
+        }
         escrow.released_amount = released;
         escrow.next_milestone = escrow
             .next_milestone
             .checked_add(1)
+            .ok_or(EscrowError::ArithmeticOverflow)?;
+        escrow.platform_fee_paid = escrow
+            .platform_fee_paid
+            .checked_add(fee)
             .ok_or(EscrowError::ArithmeticOverflow)?;
         milestone.state = MilestoneState::Released;
         escrow.state = if remaining_after == 0 {
@@ -235,7 +256,8 @@ pub mod proofwork_escrow {
             escrow: escrow.key(),
             milestone: milestone.key(),
             index: milestone.index,
-            amount: milestone.amount
+            amount: milestone.amount,
+            fee
         });
         Ok(())
     }
@@ -380,6 +402,13 @@ fn transfer_owned_lamports<'info>(
     Ok(())
 }
 
+fn calculate_fee(amount: u64, fee_bps: u16) -> Result<u64> {
+    amount
+        .checked_mul(u64::from(fee_bps))
+        .and_then(|value| value.checked_div(10_000))
+        .ok_or(EscrowError::ArithmeticOverflow.into())
+}
+
 #[derive(Accounts)]
 #[instruction(contract_id: [u8; 32])]
 pub struct InitializeEscrow<'info> {
@@ -389,6 +418,8 @@ pub struct InitializeEscrow<'info> {
     pub freelancer: UncheckedAccount<'info>,
     /// CHECK: Address is stored for a later dispute instruction; no account data is read.
     pub resolver: UncheckedAccount<'info>,
+    /// CHECK: Address is stored and constrained as a SystemAccount on release.
+    pub fee_recipient: UncheckedAccount<'info>,
     #[account(init, payer = client, space = 8 + Escrow::INIT_SPACE, seeds = [b"escrow", contract_id.as_ref(), client.key().as_ref(), freelancer.key().as_ref()], bump)]
     pub escrow: Account<'info, Escrow>,
     pub system_program: Program<'info, System>,
@@ -439,6 +470,8 @@ pub struct ReleaseMilestone<'info> {
     pub escrow: Account<'info, Escrow>,
     #[account(mut, address = escrow.freelancer @ EscrowError::InvalidRelationship)]
     pub freelancer: SystemAccount<'info>,
+    #[account(mut, address = escrow.fee_recipient @ EscrowError::InvalidRelationship)]
+    pub fee_recipient: SystemAccount<'info>,
     #[account(mut, has_one = escrow @ EscrowError::InvalidRelationship, seeds = [b"milestone", escrow.key().as_ref(), &milestone.index.to_le_bytes()], bump = milestone.bump)]
     pub milestone: Account<'info, Milestone>,
 }
@@ -486,6 +519,9 @@ pub struct Escrow {
     pub client: Pubkey,
     pub freelancer: Pubkey,
     pub resolver: Pubkey,
+    pub fee_recipient: Pubkey,
+    pub fee_bps: u16,
+    pub platform_fee_paid: u64,
     pub total_amount: u64,
     pub planned_amount: u64,
     pub funded_amount: u64,
@@ -588,6 +624,7 @@ pub struct MilestoneReleased {
     pub milestone: Pubkey,
     pub index: u16,
     pub amount: u64,
+    pub fee: u64,
 }
 #[event]
 pub struct EscrowRefunded {
@@ -642,6 +679,8 @@ pub enum EscrowError {
     InvalidEvidence,
     #[msg("Resolution awards must equal the remaining balance")]
     ResolutionTotalMismatch,
+    #[msg("Platform fee exceeds 10 percent")]
+    FeeTooHigh,
 }
 
 #[cfg(test)]
@@ -653,6 +692,9 @@ mod tests {
             client: Pubkey::new_unique(),
             freelancer: Pubkey::new_unique(),
             resolver: Pubkey::new_unique(),
+            fee_recipient: Pubkey::new_unique(),
+            fee_bps: 250,
+            platform_fee_paid: 0,
             total_amount: 1_000,
             planned_amount: 1_000,
             funded_amount: funded,
@@ -729,5 +771,12 @@ mod tests {
         assert_eq!(400_u64.checked_add(200), Some(remaining));
         assert_ne!(400_u64.checked_add(199), Some(remaining));
         assert!(u64::MAX.checked_add(1).is_none());
+    }
+
+    #[test]
+    fn fee_math_is_capped_and_checked() {
+        assert_eq!(calculate_fee(10_000, 250).unwrap(), 250);
+        assert_eq!(calculate_fee(1, 250).unwrap(), 0);
+        assert!(calculate_fee(u64::MAX, 1_000).is_err());
     }
 }
